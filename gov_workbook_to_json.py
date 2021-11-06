@@ -1,22 +1,29 @@
 from dataclasses import dataclass
 from openpyxl import load_workbook
+from openpyxl.workbook import workbook
 from openpyxl.worksheet.worksheet import Worksheet
 import pandas as pd
 from pandas.core.frame import DataFrame
+from functools import lru_cache
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class GovWorkbookSpecs:    
     fileName: str
     sheetName: str
     # Pandas index
     valueStartRow: int
 
+@lru_cache
 def getWorksheet(spec: GovWorkbookSpecs):
     worksheet = pd.read_excel(spec.fileName, spec.sheetName, header=None)
     return worksheet
 
+@lru_cache
+def loadWorkbook(fileName):
+    return load_workbook(fileName)
+
 def readInfo(spec : GovWorkbookSpecs):
-    workbook = load_workbook(spec.fileName)
+    workbook = loadWorkbook(spec.fileName)
     worksheet = workbook[spec.sheetName]
     mergedBounds = [r.bounds for r in worksheet.merged_cells.ranges]
     groupedCols = getGroupedCols(worksheet)
@@ -73,7 +80,7 @@ def allGroupedCols(groupedCols : list, i = 0):
 def toWorksheet(spec):
     mergedBounds, groupedCols = readInfo(spec)
     worksheet = getWorksheet(spec)    
-    worksheet.replace(r'\n',' ', regex=True, inplace=True) 
+    worksheet.replace(r'\n|\\n',' ', regex=True, inplace=True) 
     for bound in mergedBounds: fill(worksheet, bound)
     prefixes = buildPrefixes(spec, worksheet)
     groupedCols.append(GroupedCol(worksheet.shape[1], worksheet.shape[1]))
@@ -84,8 +91,12 @@ def toWorksheet(spec):
     return worksheet
 
 if __name__ == '__main__':
-    # spec = GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 1', 7)
-    spec = GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 3', 7)
-    worksheet = toWorksheet(spec)
-    print(worksheet)
+    specs = [
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 1', 7),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 3', 7)
+    ]
+    for spec in specs:
+        worksheet = toWorksheet(spec)
+        json = worksheet.to_json(orient='records')
+        print(json)
     
