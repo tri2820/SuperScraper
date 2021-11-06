@@ -1,25 +1,30 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from openpyxl import load_workbook
 from openpyxl.workbook import workbook
 from openpyxl.worksheet.worksheet import Worksheet
 import pandas as pd
 from pandas.core.frame import DataFrame
 from functools import lru_cache
+import logging
+logging.basicConfig(level=logging.DEBUG)
+import os
 
-@dataclass(eq=True, frozen=True)
+@dataclass
 class GovWorkbookSpecs:    
     fileName: str
     sheetName: str
     # Pandas index
     valueStartRow: int
+    droppedRows: list[int] = field(default_factory=list)
 
 @lru_cache
-def getWorksheet(spec: GovWorkbookSpecs):
-    worksheet = pd.read_excel(spec.fileName, spec.sheetName, header=None)
-    return worksheet
+def getWorksheet(fileName, sheetName):
+    logging.info(f'Loading {fileName}, {sheetName} (lite)')
+    return pd.read_excel(fileName, sheetName, header=None)
 
 @lru_cache
 def loadWorkbook(fileName):
+    logging.info(f'Loading {fileName}')
     return load_workbook(fileName)
 
 def readInfo(spec : GovWorkbookSpecs):
@@ -31,8 +36,7 @@ def readInfo(spec : GovWorkbookSpecs):
 
 def buildPrefixes(spec : GovWorkbookSpecs, worksheet : DataFrame):
     keyArea = worksheet.iloc[0:spec.valueStartRow]
-    keyArea = keyArea.fillna('').astype(str).applymap(lambda s: s+'->')
-    prefixes = keyArea.sum()
+    prefixes = keyArea.fillna('').apply(lambda col: '->'.join(filter(None,col)))
     return prefixes
 
 def fill(worksheet, mergedBound):
@@ -77,26 +81,38 @@ def allGroupedCols(groupedCols : list, i = 0):
     g = groupedCols[0]
     return [GroupedCol(i,i) for i in range(i, g.min)] + [g] + allGroupedCols(groupedCols[1:], g.max+1)
 
-def toWorksheet(spec):
-    mergedBounds, groupedCols = readInfo(spec)
-    worksheet = getWorksheet(spec)    
+def toWorksheet(spec : GovWorkbookSpecs):
+    logging.info(f'Converting {spec.fileName}/{spec.sheetName}')
+
+    _spec = spec
+    mergedBounds, groupedCols = readInfo(_spec)
+    worksheet : DataFrame = getWorksheet(_spec.fileName, _spec.sheetName)    
     worksheet.replace(r'\n|\\n',' ', regex=True, inplace=True) 
     for bound in mergedBounds: fill(worksheet, bound)
-    prefixes = buildPrefixes(spec, worksheet)
+    worksheet.drop(spec.droppedRows, inplace=True)
+    _spec.valueStartRow -= len(_spec.droppedRows)
+    prefixes = buildPrefixes(_spec, worksheet)
     groupedCols.append(GroupedCol(worksheet.shape[1], worksheet.shape[1]))
     groupedCols = allGroupedCols(groupedCols)
     prefixes = addGroupedColsToPrefixes(prefixes, groupedCols)
-    worksheet = worksheet[spec.valueStartRow:]
+    worksheet = worksheet[_spec.valueStartRow:]
     worksheet.columns = prefixes
     return worksheet
 
+def write(fileName, content):
+    os.makedirs(os.path.dirname(fileName), exist_ok=True)
+    logging.info(f'Writing to {fileName} {hash(content)}')
+    with open(fileName,'w') as f:
+            f.write(json)
+            f.close()
+
 if __name__ == '__main__':
     specs = [
-        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 1', 7),
-        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 3', 7)
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 1', 7, droppedRows=[0,1,2,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 2', 7, droppedRows=[0,1,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 3', 7, droppedRows=[0,1,2,3,5,6])
     ]
     for spec in specs:
         worksheet = toWorksheet(spec)
         json = worksheet.to_json(orient='records')
-        print(json)
-    
+        write(f'./result/{spec.sheetName}.json', json)
