@@ -30,20 +30,19 @@ def loadWorkbook(fileName):
 def readInfo(spec : GovWorkbookSpecs):
     workbook = loadWorkbook(spec.fileName)
     worksheet = workbook[spec.sheetName]
-    mergedBounds = [r.bounds for r in worksheet.merged_cells.ranges]
+    mergedBounds = [(a-1,b-1,c-1,d-1) for (a,b,c,d) in map(lambda r: r.bounds, worksheet.merged_cells.ranges)]
     groupedCols = getGroupedCols(worksheet)
     return mergedBounds, groupedCols
 
 def buildPrefixes(spec : GovWorkbookSpecs, worksheet : DataFrame):
     keyArea = worksheet.iloc[0:spec.valueStartRow]
-    prefixes = keyArea.fillna('').apply(lambda col: '->'.join(filter(None,col)))
+    prefixes = keyArea.fillna('').apply(lambda col: '->'.join(map(lambda x: str(x), filter(None,col))))
     return prefixes
 
 def fill(worksheet, mergedBound):
     col_min, row_min, col_max, row_max = mergedBound
-    area = worksheet.iloc[row_min-1:row_max,col_min-1:col_max]
-    area.ffill(axis=1, inplace=True)
-    area.ffill(axis=0, inplace=True)
+    forwardedValue = worksheet.iloc[row_min][col_min]
+    worksheet.loc[row_min:row_max, col_min:col_max] = forwardedValue
 
 @dataclass
 class GroupedCol:
@@ -108,9 +107,19 @@ def write(fileName, content):
 
 if __name__ == '__main__':
     specs = [
-        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 1', 7, droppedRows=[0,1,2,3,5,6]),
-        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 2', 7, droppedRows=[0,1,3,5,6]),
-        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 3', 7, droppedRows=[0,1,2,3,5,6])
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 1', valueStartRow=7, droppedRows=[0,1,2,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 2', valueStartRow=7, droppedRows=[0,1,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 3', valueStartRow=7, droppedRows=[0,1,2,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 4', valueStartRow=7, droppedRows=[0,1,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 5', valueStartRow=7, droppedRows=[0,1,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 6', valueStartRow=9, droppedRows=[0,1,2,5,7,8]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 7', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 8', valueStartRow=7, droppedRows=[0,1,2,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 9', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 10', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 11', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 12', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 13', valueStartRow=8, droppedRows=[0,1,2,4,6,7])
     ]
     for spec in specs:
         worksheet = toWorksheet(spec)
