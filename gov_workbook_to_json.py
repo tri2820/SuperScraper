@@ -186,4 +186,5 @@ if __name__ == '__main__':
             raise Exception('Cannot convert json records, there are duplications in keys: ', dups, keys)
 
         json = worksheet.to_json(orient='records')
-        write(f'./result/{spec.sheetName}.json', json)
+        path = os.path.join('result', spec.fileName, f'{spec.sheetName}.json')
+        write(path, json)
