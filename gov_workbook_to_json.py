@@ -44,13 +44,14 @@ def fill(worksheet, mergedBound):
     forwardedValue = worksheet.iloc[row_min][col_min]
     worksheet.loc[row_min:row_max, col_min:col_max] = forwardedValue
 
-@dataclass(eq=True)
+@dataclass(eq=True, order=True, frozen=True)
 class GroupedCol:
     min: int
     max: int
     owner: int = None
 
-def merge(outlines: list[GroupedCol]):
+def merge(outlines: set[GroupedCol]):
+    outlines = sorted(list(outlines))
     result : list[GroupedCol] = []
     for o in outlines:
         mismatched = result == [] or result[-1].max+1 < o.min
@@ -60,7 +61,13 @@ def merge(outlines: list[GroupedCol]):
 
 def getGroupedCols(ws: Worksheet):
     dim = ws.column_dimensions
-    bounds = [GroupedCol(d.min, d.max) for d in dim.values() if d.outlineLevel == 1]
+    # TODO: take care of groups of groups of grouped cols
+    maxlevel = max([d.outlineLevel for d in dim.values()])
+    bounds = {GroupedCol(d.min, d.max) for d in dim.values() if d.outlineLevel == 1}
+    if maxlevel == 2:
+        bounds2 = {GroupedCol(d.min, d.max) for d in dim.values() if d.outlineLevel == 2}
+        for b in bounds2: bounds.discard(GroupedCol(b.max+1, b.max+1))
+        bounds |= bounds2
     groups = merge(bounds)
     groups = [GroupedCol(g.min-1, g.max-1) for g in groups]
     return groups
@@ -77,17 +84,26 @@ def commonHead(tuples):
     return (e,) + common, rests
 
 def addGroupedColsToPrefixes(prefixes, groupedCols : list[GroupedCol]):
-    _prefixes = []
-    dups = getDups(prefixes)
+    result = []
+    _prefixes = prefixes
+
+    dups = getDups(_prefixes)
+    prefixes = [s.strip() for p in _prefixes for s in p ]
     for id, group in enumerate(groupedCols):
-        rangedPrefixes = prefixes[group.min:group.max+1]
+        rangedPrefixes = _prefixes[group.min:group.max+1]
+        
+
+        dupsInRange = getDups(rangedPrefixes)
+        rangedPrefixes = [p+(f'#{i}',) if p in dupsInRange else p for (i,p) in enumerate(rangedPrefixes)]
+
         common, rests = commonHead(rangedPrefixes)
         distinctable = set(rangedPrefixes).intersection(dups) == set()
-        withoutGroupID = distinctable or all(e==() for e in rests)
+        withoutGroupID = distinctable
         keys = rangedPrefixes if withoutGroupID else [common+(f'G{id}',)+r for r in rests]
 
-        _prefixes += keys
-    return _prefixes
+        result += keys
+
+    return result
 
 def allGroupedCols(groupedCols : list, i = 0):
     if not groupedCols: return []
@@ -142,7 +158,16 @@ if __name__ == '__main__':
         GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 10', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
         GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 11', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
         GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 12', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
-        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 13', valueStartRow=8, droppedRows=[0,1,2,4,6,7])
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 13', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
+
+        GovWorkbookSpecs('workbook/List of RSES and RSE Licensees and MySuper Authorised products and ERFs 23 August 2021.xlsx', 'List of RSE', valueStartRow=1),
+        GovWorkbookSpecs('workbook/List of RSES and RSE Licensees and MySuper Authorised products and ERFs 23 August 2021.xlsx', 'List of Licensee', valueStartRow=1),
+        GovWorkbookSpecs('workbook/List of RSES and RSE Licensees and MySuper Authorised products and ERFs 23 August 2021.xlsx', 'MySuper Products', valueStartRow=1),
+        GovWorkbookSpecs('workbook/List of RSES and RSE Licensees and MySuper Authorised products and ERFs 23 August 2021.xlsx', 'Eligible Rollover Funds', valueStartRow=1),
+
+        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 1a', valueStartRow=6, droppedRows=[0,1,4,5]),
+        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 1b', valueStartRow=6, droppedRows=[0,1,4,5]),
+        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 2a', valueStartRow=7, droppedRows=[0,1,3,5,6])
     ]
     for spec in specs:
         worksheet = toWorksheet(spec)
