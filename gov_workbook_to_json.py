@@ -115,7 +115,8 @@ def toWorksheet(spec : GovWorkbookSpecs):
     _spec = spec
     mergedBounds, groupedCols = readInfo(_spec)
     worksheet : DataFrame = getWorksheet(_spec.fileName, _spec.sheetName)    
-    worksheet.replace(r'\n|\\n',' ', regex=True, inplace=True) 
+    worksheet.replace(r'\n|\\n',' ', regex=True, inplace=True)
+    mergedBounds = [(col_min, row_min, col_max, row_max) for (col_min, row_min, col_max, row_max) in mergedBounds if col_max < worksheet.shape[1]]
     for bound in mergedBounds: fill(worksheet, bound)
     worksheet.drop(spec.droppedRows, inplace=True)
     _spec.valueStartRow -= len(_spec.droppedRows)
@@ -167,7 +168,14 @@ if __name__ == '__main__':
 
         GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 1a', valueStartRow=6, droppedRows=[0,1,4,5]),
         GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 1b', valueStartRow=6, droppedRows=[0,1,4,5]),
-        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 2a', valueStartRow=7, droppedRows=[0,1,3,5,6])
+        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 2a', valueStartRow=7, droppedRows=[0,1,3,5,6]),
+        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 2b', valueStartRow=8, droppedRows=[0,1,3,5,6]),
+        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 3', valueStartRow=8, droppedRows=[0,1,3,5,6]),
+        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 4', valueStartRow=5, droppedRows=[0,1,3,4]),
+        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 5', valueStartRow=6, droppedRows=[0,1,2,4,5]),
+        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 6', valueStartRow=6, droppedRows=[0,1,2,4,5]),
+        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 7', valueStartRow=7, droppedRows=[0,1,2,5,6]),
+        GovWorkbookSpecs('workbook/Quarterly Mysuper statistics September 2019 - March 2021 reissued.xlsx', 'Table 8', valueStartRow=6, droppedRows=[0,1,2,4,5]),
     ]
     for spec in specs:
         worksheet = toWorksheet(spec)
