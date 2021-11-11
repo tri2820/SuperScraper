@@ -33,9 +33,10 @@ def readInfo(spec : GovWorkbookSpecs):
     groupedCols = getGroupedCols(worksheet)
     return mergedBounds, groupedCols
 
-def buildPrefixes(spec : GovWorkbookSpecs, worksheet : DataFrame):
+def buildPrefixes(spec : GovWorkbookSpecs, worksheet : DataFrame) -> list[tuple[str]]:
     keyArea = worksheet.iloc[0:spec.valueStartRow]
-    prefixes = keyArea.fillna('').apply(lambda col: tuple([a for a in col if a]))
+    prefixes = []
+    for col in keyArea: prefixes.append(tuple(keyArea[col].dropna().astype(str)))
     return prefixes
 
 def fill(worksheet, mergedBound):
@@ -65,9 +66,7 @@ def getGroupedCols(ws: Worksheet):
     return groups
 
 def commonHead(tuples):
-    if () in tuples or not tuples: 
-        return (), tuples
-
+    if () in tuples or not tuples: return (), tuples
     heads = [t[0] for t in tuples]
     tails = [t[1:] for t in tuples]
     e = heads[0]
@@ -80,9 +79,8 @@ def commonHead(tuples):
 def addGroupedColsToPrefixes(prefixes, groupedCols : list[GroupedCol]):
     _prefixes = []
     dups = getDups(prefixes)
-
     for id, group in enumerate(groupedCols):
-        rangedPrefixes = prefixes[group.min:group.max+1].tolist()
+        rangedPrefixes = prefixes[group.min:group.max+1]
         common, rests = commonHead(rangedPrefixes)
         distinctable = set(rangedPrefixes).intersection(dups) == set()
         withoutGroupID = distinctable or all(e==() for e in rests)
@@ -98,7 +96,6 @@ def allGroupedCols(groupedCols : list, i = 0):
 
 def toWorksheet(spec : GovWorkbookSpecs):
     logging.info(f'Converting {spec.fileName}/{spec.sheetName}')
-
     _spec = spec
     mergedBounds, groupedCols = readInfo(_spec)
     worksheet : DataFrame = getWorksheet(_spec.fileName, _spec.sheetName)    
@@ -112,6 +109,7 @@ def toWorksheet(spec : GovWorkbookSpecs):
     prefixes = addGroupedColsToPrefixes(prefixes, groupedCols)
     worksheet = worksheet[_spec.valueStartRow:]
     worksheet.columns = ['->'.join(p) for p in prefixes]
+    worksheet = worksheet.dropna(axis=1, how='all')
     return worksheet
 
 def write(fileName, content):
@@ -132,19 +130,19 @@ def getDups(items):
 
 if __name__ == '__main__':
     specs = [
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 1', valueStartRow=7, droppedRows=[0,1,2,3,5,6]),
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 2', valueStartRow=7, droppedRows=[0,1,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 1', valueStartRow=7, droppedRows=[0,1,2,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 2', valueStartRow=7, droppedRows=[0,1,3,5,6]),
         GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 3', valueStartRow=7, droppedRows=[0,1,3,5,6]),
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 4', valueStartRow=7, droppedRows=[0,1,3,5,6]),
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 5', valueStartRow=7, droppedRows=[0,1,3,5,6]),
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 6', valueStartRow=9, droppedRows=[0,1,2,5,7,8]),
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 7', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 8', valueStartRow=7, droppedRows=[0,1,2,3,5,6]),
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 9', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 10', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 11', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 12', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
-        # GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 13', valueStartRow=8, droppedRows=[0,1,2,4,6,7])
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 4', valueStartRow=7, droppedRows=[0,1,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 5', valueStartRow=7, droppedRows=[0,1,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 6', valueStartRow=9, droppedRows=[0,1,2,5,7,8]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 7', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 8', valueStartRow=7, droppedRows=[0,1,2,3,5,6]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 9', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 10', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 11', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 12', valueStartRow=8, droppedRows=[0,1,2,4,6,7]),
+        GovWorkbookSpecs('workbook/Annual fund-level superannuation statistics June 2020.xlsx', 'Table 13', valueStartRow=8, droppedRows=[0,1,2,4,6,7])
     ]
     for spec in specs:
         worksheet = toWorksheet(spec)
@@ -152,7 +150,7 @@ if __name__ == '__main__':
         keys = worksheet.columns
         dups = getDups(keys)
         if dups:
-            raise Exception('Cannot convert json records, there are duplications in keys: ', dups)
+            raise Exception('Cannot convert json records, there are duplications in keys: ', dups, keys)
 
         json = worksheet.to_json(orient='records')
         write(f'./result/{spec.sheetName}.json', json)
