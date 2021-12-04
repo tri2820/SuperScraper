@@ -1,0 +1,2 @@
+# About
+This is a personal repo to host Tri Nguyen Van's improved data extraction module for SuperScraper. The main Bitbucket repository with commit history, NN image processing, Electron frontend and MongoDB database requires Deakin and the client's permission to view due to the highly classified nature of the work.
